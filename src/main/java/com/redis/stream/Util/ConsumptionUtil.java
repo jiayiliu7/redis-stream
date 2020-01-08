@@ -15,6 +15,8 @@ import java.util.List;
 @Async
 @Component
 public class ConsumptionUtil {
+    private final String GROUP = "application_1";
+    private final String REDIS_STREAM = "redis-stream";
 
     protected  final static Logger logger = LoggerFactory.getLogger(Consumer.class);
 
@@ -23,22 +25,22 @@ public class ConsumptionUtil {
         StatefulRedisConnection<String, String> connection = redisClient.connect();
         RedisCommands<String, String> syncCommands = connection.sync();
         try {
-            syncCommands.xgroupCreate(XReadArgs.StreamOffset.from("redis-stream", "0-0"), "application_1", XGroupCreateArgs.Builder.mkstream(true));
+            syncCommands.xgroupCreate(XReadArgs.StreamOffset.from(REDIS_STREAM, "0-0"), GROUP, XGroupCreateArgs.Builder.mkstream(true));
         } catch (RedisBusyException redisBusyException) {
-            logger.info(String.format("\t Group '%s already' exists", "application_1"));
+            logger.info(String.format("\t Group '%s already' exists", GROUP));
         }
         logger.info("Waiting for new messages....");
         while (true) {
             List<StreamMessage<String, String>> messages = syncCommands.xreadgroup(
-                    io.lettuce.core.Consumer.from("application_1", consumer),
-                    XReadArgs.StreamOffset.lastConsumed("redis-stream")
+                    io.lettuce.core.Consumer.from(GROUP, consumer),
+                    XReadArgs.StreamOffset.lastConsumed(REDIS_STREAM)
             );
             if (!messages.isEmpty()) {
                 messages.stream()
                         .forEach(a -> {
                             boolean result =  printMessage(a.getBody().toString());
                             if (result){
-                                syncCommands.xack("redis-stream","application_1",a.getId());
+                                syncCommands.xack(REDIS_STREAM,GROUP,a.getId());
                             }
                         });
             }
@@ -64,4 +66,6 @@ public class ConsumptionUtil {
         logger.info("结束 "+message);
         return true;
     }
+
+
 }
