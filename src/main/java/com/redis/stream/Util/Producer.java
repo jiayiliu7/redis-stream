@@ -18,6 +18,7 @@ public class Producer {
         RedisClient redisClient = RedisClient.create("redis://localhost:6379"); // change to reflect your environment
         StatefulRedisConnection<String, String> connection = redisClient.connect();
         RedisCommands<String, String> syncCommands = connection.sync();
+        logger.info("生😋{}",content);
         //传递的消息必须是Map类型
         Map<String, String> messageBody = JSON.parseObject(content, new TypeReference<HashMap<String, String>>(){
         });

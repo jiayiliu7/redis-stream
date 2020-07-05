@@ -1,15 +1,25 @@
 package com.redis.stream.Util;
 
+
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.redis.stream.Controller.StreamController;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +29,7 @@ import java.util.concurrent.Future;
 @Component
 public class ConsumptionUtil {
     private final String GROUP = "application_1";
-    private final String REDIS_STREAM = "redis-stream";
+    private final String REDIS_STREAM = "bigScreen";
 
     protected  final static Logger logger = LoggerFactory.getLogger(Consumer.class);
 
@@ -43,8 +53,8 @@ public class ConsumptionUtil {
             if (!messages.isEmpty()) {
                 messages.forEach(a -> {
                             Future<String> result =  printMessage(a.getBody().toString());
-
-                            if ("true".equals(result.toString())){
+                            if (result.isDone()){
+                                logger.info("{}消息处理完毕",a.getBody());
                                 syncCommands.xack(REDIS_STREAM,GROUP,a.getId());
                             }
                         });
@@ -55,16 +65,20 @@ public class ConsumptionUtil {
     public Future<String> printMessage(String message){
 
         logger.info("现在时间是{}， 我获得消息为{}",System.currentTimeMillis(),message);
-        message=message.replace("=",":");
-        HashMap<String,String> map;
-        map= JSON.parseObject(message,new TypeReference<HashMap<String,String>>(){});
+
+        message = message.replaceAll("=",":").replaceAll(":,",":\"\",");
+        HashMap<String,Object> map;
+        Gson gson = new GsonBuilder().create();
+        map = gson.fromJson(message,new TypeReference<HashMap<String,Object>>(){}.getType());
         map.forEach((key, value) -> logger.info("这次key是{}，这次的value是{}。", key, value));
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         logger.info("结束 "+message);
+
+//        RestTemplate restTemplate = new RestTemplate();
+//        String url = "http://localhost:8082/zhhw/test/"+customer_id;
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        HttpEntity<String> entity = new HttpEntity<>(gson.toJson(map), headers);
+//        restTemplate.postForObject(url, entity, String.class);
         return new AsyncResult<>("true");
     }
 
